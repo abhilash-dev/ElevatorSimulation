@@ -1,5 +1,6 @@
 package org.example.elevatorsimulation.service;
 
+import lombok.extern.slf4j.Slf4j;
 import org.example.elevatorsimulation.exception.ElevatorSimulationException;
 import org.example.elevatorsimulation.model.ElevatorState;
 
@@ -8,6 +9,12 @@ import java.util.NavigableSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+/**
+ * @author Abhilash Sulibela
+ * <p>
+ * Class that encapsulates an Elevator within a building
+ */
+@Slf4j
 public class Elevator implements Runnable {
     private ConcurrentMap<ElevatorState, NavigableSet<Integer>> pathMap;
     private int id;
@@ -50,7 +57,11 @@ public class Elevator implements Runnable {
         this.currentFloor = currentFloor;
     }
 
+    /**
+     * move the elevators at a regular pace of 1 floor/sec
+     */
     public void move() {
+        log.trace("invoking move()");
         this.buildingService.getElevatorList().set(this.getId(), this);
         Iterator<ElevatorState> iter = this.pathMap.keySet().iterator();
 
@@ -84,16 +95,23 @@ public class Elevator implements Runnable {
                     this.buildingService.getElevatorList().set(this.getId(), this);
                 }
 
-                System.out.println("Elevator ID " + this.id + " | Current floor - " + getCurrentFloor() + " | next - " + getElevatorState());
+                log.info("Elevator ID - {} | Current floor - {} | next - {}", this.getId(), this.getCurrentFloor(), getElevatorState());
                 try {
                     Thread.sleep(1000);
                 } catch (InterruptedException e) {
+                    log.error("There was a problem while on move with elevator - {}", this.getId());
                     throw new ElevatorSimulationException("There was a problem while on move with elevator - " + this.getId(), e);
                 }
             }
         }
     }
 
+    /**
+     * generate all the checkpoints / floors in between the given start & end floors
+     *
+     * @param initial the starting floor
+     * @param target  the ending floor
+     */
     private void generateIntermediateFloorCheckpoints(int initial, int target) {
 
         if (Math.abs(initial - target) <= 1) {

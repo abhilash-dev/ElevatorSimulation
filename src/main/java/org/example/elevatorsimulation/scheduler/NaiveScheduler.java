@@ -1,5 +1,6 @@
 package org.example.elevatorsimulation.scheduler;
 
+import lombok.extern.slf4j.Slf4j;
 import org.example.elevatorsimulation.exception.ElevatorSimulationException;
 import org.example.elevatorsimulation.model.ElevatorCallRequest;
 import org.example.elevatorsimulation.model.ElevatorState;
@@ -13,18 +14,26 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+/**
+ * @author Abhilash Sulibela
+ * <p>
+ * A naive implementation for the Scheduler interface to schedule elevator call requests in a given building using the BuildingService
+ */
+@Slf4j
 public class NaiveScheduler implements Scheduler, Runnable {
     private Thread thread;
     private final AtomicBoolean running = new AtomicBoolean(false);
 
     @Override
     public void start() {
+        log.info("Started the scheduler");
         this.thread = new Thread(this);
         this.thread.start();
     }
 
     @Override
     public void stop() {
+        log.info("Stopping the scheduler");
         this.running.set(false);
     }
 
@@ -33,19 +42,30 @@ public class NaiveScheduler implements Scheduler, Runnable {
         this.running.set(true);
         while (this.running.get()) {
             try {
+                // fetch a call request from the queue, if it exists
                 if (BuildingService.getInstance().fetch().isPresent()) {
                     ElevatorCallRequest request = BuildingService.getInstance().fetch().get();
+                    log.debug("scheduling the call request from floor - {} to floor - {}", request.getRequestFloor(), request.getTargetFloor());
                     if (schedule(request)) {
+                        // remove the request after successfully scheduling the call request
+                        log.debug("successfully scheduled the call request from floor - {} to floor - {}", request.getRequestFloor(), request.getTargetFloor());
                         BuildingService.getInstance().removeRequest();
                     }
                 }
                 Thread.sleep(100);
             } catch (InterruptedException e) {
+                log.error("There was a problem when scheduling elevator call requests");
                 throw new ElevatorSimulationException("There was a problem when scheduling elevator call requests", e);
             }
         }
     }
 
+    /**
+     * Schedule the given instance of ElevatorRequest to an elevator using the building service
+     *
+     * @param elevatorRequest an instance of ElevatorRequest capturing a call request
+     * @return True, if the request was successfully scheduled. False, otherwise
+     */
     @Override
     public boolean schedule(ElevatorCallRequest elevatorRequest) {
         Elevator elevator = null;
@@ -54,10 +74,13 @@ public class NaiveScheduler implements Scheduler, Runnable {
 
         synchronized (BuildingService.getInstance()) {
             List<Elevator> elevatorList = BuildingService.getInstance().getElevatorList();
+
+            // fetch all elevators in stationary state
             Optional<Elevator> stationaryElevatorOpt = elevatorList.stream()
                     .filter(e -> e.getElevatorState().equals(ElevatorState.STATIONARY))
                     .min(Comparator.comparingInt(a -> elevatorRequest.getRequestFloor() - a.getCurrentFloor()));
 
+            // fetch all elevators approaching the requested floor
             if (elevatorState.equals(ElevatorState.UP)) {
                 Optional<Elevator> approachingElevatorOpt = elevatorList.stream()
                         .filter(e -> e.getElevatorState().equals(ElevatorState.UP) && e.getCurrentFloor() <= elevatorRequest.getRequestFloor())
@@ -80,6 +103,7 @@ public class NaiveScheduler implements Scheduler, Runnable {
                 }
 
             } else if (elevatorState.equals(ElevatorState.DOWN)) {
+                // fetch all approaching elevators
                 Optional<Elevator> approachingElevatorOpt = elevatorList.stream()
                         .filter(e -> e.getElevatorState().equals(ElevatorState.DOWN) && e.getCurrentFloor() >= elevatorRequest.getRequestFloor())
                         .min(Comparator.comparingInt(a -> elevatorRequest.getRequestFloor() - a.getCurrentFloor()));
@@ -101,7 +125,9 @@ public class NaiveScheduler implements Scheduler, Runnable {
                 }
             }
 
+            // if an elevator was scheduled
             if (elevator != null) {
+                log.debug("Call request from - {} to - {} scheduled to Elevator - {}", elevatorRequest.getRequestFloor(), elevatorRequest.getTargetFloor(), elevator.getId());
                 setUpElevatorPath(elevatorRequest, elevator);
                 System.out.println(elevatorRequest.getRequestFloor() + " to " + elevatorRequest.getTargetFloor() + " scheduled to elevator" + elevator.getId());
             }
@@ -109,6 +135,12 @@ public class NaiveScheduler implements Scheduler, Runnable {
         return elevator != null;
     }
 
+    /**
+     * Setup path checkpoints to reach the target floor from the elevators current floor
+     *
+     * @param elevatorCallRequest an instance of ElevatorRequest encapsulating a user elevator call request
+     * @param elevator            the elevator that is scheduled to carry on the given call request
+     */
     private void setUpElevatorPath(ElevatorCallRequest elevatorCallRequest, Elevator elevator) {
         // if the elevator is not at the requested floor, set up a path to get to request floor
         if (elevator.getCurrentFloor() != elevatorCallRequest.getRequestFloor()) {
@@ -132,6 +164,12 @@ public class NaiveScheduler implements Scheduler, Runnable {
         elevator.getPathMap().put(targetFloorDirection, targetPathCheckpoints);
     }
 
+    /**
+     * Return the direction the elevator has to travel to satisfy the current call request
+     *
+     * @param elevatorCallRequest an instance of ElevatorCallRequest encapsulating a user elevator call request
+     * @return a value depicting the direction for the elevator to travel
+     */
     private ElevatorState getRequestedElevatorDirection(ElevatorCallRequest elevatorCallRequest) {
         int requestedFloor = elevatorCallRequest.getRequestFloor();
         int targetFloor = elevatorCallRequest.getTargetFloor();

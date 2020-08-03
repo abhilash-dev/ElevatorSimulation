@@ -1,5 +1,6 @@
 package org.example.elevatorsimulation.service;
 
+import lombok.extern.slf4j.Slf4j;
 import org.example.elevatorsimulation.model.ElevatorCallRequest;
 
 import java.util.List;
@@ -7,6 +8,11 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+/**
+ * @author Abhilash Sulibela
+ * Class that represents the building which coordinates & maintains the state of all the elevators at any given time
+ */
+@Slf4j
 public final class BuildingService {
 
     private ConcurrentLinkedDeque<ElevatorCallRequest> requestQueue;
@@ -33,6 +39,7 @@ public final class BuildingService {
     }
 
     public void initializeElevators(int noOfElevators) {
+        log.debug("Initializing {} elevators", noOfElevators);
         for (int i = 0; i < noOfElevators; i++) {
             Elevator elevator = new Elevator(i, this);
             Thread t = new Thread(elevator);
