@@ -1,5 +1,6 @@
 package org.example.elevatorsimulation.service;
 
+import org.example.elevatorsimulation.exception.ElevatorSimulationException;
 import org.example.elevatorsimulation.model.ElevatorState;
 
 import java.util.Iterator;
@@ -87,7 +88,7 @@ public class Elevator implements Runnable {
                 try {
                     Thread.sleep(1000);
                 } catch (InterruptedException e) {
-                    e.printStackTrace();
+                    throw new ElevatorSimulationException("There was a problem while on move with elevator - " + this.getId(), e);
                 }
             }
         }

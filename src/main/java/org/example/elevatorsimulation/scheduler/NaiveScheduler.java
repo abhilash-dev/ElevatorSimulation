@@ -1,5 +1,6 @@
 package org.example.elevatorsimulation.scheduler;
 
+import org.example.elevatorsimulation.exception.ElevatorSimulationException;
 import org.example.elevatorsimulation.model.ElevatorCallRequest;
 import org.example.elevatorsimulation.model.ElevatorState;
 import org.example.elevatorsimulation.service.BuildingService;
@@ -40,7 +41,7 @@ public class NaiveScheduler implements Scheduler, Runnable {
                 }
                 Thread.sleep(100);
             } catch (InterruptedException e) {
-                e.printStackTrace();
+                throw new ElevatorSimulationException("There was a problem when scheduling elevator call requests", e);
             }
         }
     }
@@ -114,27 +115,20 @@ public class NaiveScheduler implements Scheduler, Runnable {
             ElevatorCallRequest toRequestFloor = new ElevatorCallRequest(elevator.getCurrentFloor(), elevatorCallRequest.getRequestFloor());
             ElevatorState requestFloorDirection = getRequestedElevatorDirection(toRequestFloor);
 
-
-            NavigableSet<Integer> pathCheckpoints = elevator.getPathMap().get(requestFloorDirection);
-            if (pathCheckpoints == null) {
-                pathCheckpoints = new ConcurrentSkipListSet<>();
-            }
-
+            NavigableSet<Integer> pathCheckpoints = elevator.getPathMap().getOrDefault(requestFloorDirection, new ConcurrentSkipListSet<>());
             pathCheckpoints.add(elevator.getCurrentFloor());
             pathCheckpoints.add(elevatorCallRequest.getRequestFloor());
+
             elevator.getPathMap().put(requestFloorDirection, pathCheckpoints);
         }
         // the elevator is now at the requested floor, set up a path from requested floor to target floor
         ElevatorCallRequest toTargetFloor = new ElevatorCallRequest(elevatorCallRequest.getRequestFloor(), elevatorCallRequest.getTargetFloor());
         ElevatorState targetFloorDirection = getRequestedElevatorDirection(toTargetFloor);
 
-        NavigableSet<Integer> targetPathCheckpoints = elevator.getPathMap().get(targetFloorDirection);
-        if (targetPathCheckpoints == null) {
-            targetPathCheckpoints = new ConcurrentSkipListSet<>();
-        }
-
+        NavigableSet<Integer> targetPathCheckpoints = elevator.getPathMap().getOrDefault(targetFloorDirection, new ConcurrentSkipListSet<>());
         targetPathCheckpoints.add(elevatorCallRequest.getRequestFloor());
         targetPathCheckpoints.add(elevatorCallRequest.getTargetFloor());
+
         elevator.getPathMap().put(targetFloorDirection, targetPathCheckpoints);
     }
 

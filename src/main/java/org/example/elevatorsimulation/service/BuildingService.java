@@ -10,14 +10,15 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public final class BuildingService {
 
     private ConcurrentLinkedDeque<ElevatorCallRequest> requestQueue;
-    private List<Elevator> elevatorList = new CopyOnWriteArrayList<>();
+    private List<Elevator> elevatorList;
     private static volatile BuildingService instance = null;
 
     private BuildingService() {
         if (instance != null) {
-            throw new IllegalStateException("Already instantiated");
+            throw new IllegalStateException("Already instantiated, Please use getInstance()");
         }
         this.requestQueue = new ConcurrentLinkedDeque<>();
+        this.elevatorList = new CopyOnWriteArrayList<>();
     }
 
     public static BuildingService getInstance() {

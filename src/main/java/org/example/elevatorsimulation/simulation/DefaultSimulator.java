@@ -1,11 +1,16 @@
 package org.example.elevatorsimulation.simulation;
 
+import org.example.elevatorsimulation.exception.BadRequestException;
+import org.example.elevatorsimulation.exception.ElevatorSimulationException;
 import org.example.elevatorsimulation.model.ElevatorCallRequest;
 import org.example.elevatorsimulation.scheduler.Scheduler;
 import org.example.elevatorsimulation.service.BuildingService;
 
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import static org.example.elevatorsimulation.util.Constants.MAX_ELEVATORS;
+import static org.example.elevatorsimulation.util.Constants.MAX_FLOORS;
 
 public class DefaultSimulator implements Simulator, Runnable {
     private Thread thread;
@@ -21,6 +26,10 @@ public class DefaultSimulator implements Simulator, Runnable {
     }
 
     public DefaultSimulator(int floorCount, int elevatorCount, Scheduler scheduler, long interval, int simulationCount) {
+        if (!isValid(floorCount, elevatorCount)) {
+            throw new BadRequestException("Bad Request to Elevator Simulation. Please enter a value between 1-10 for elevator " +
+                    "count & 1-1000 for no. of floors in the building");
+        }
         this.floorCount = floorCount;
         this.elevatorCount = elevatorCount;
         this.scheduler = scheduler;
@@ -28,16 +37,21 @@ public class DefaultSimulator implements Simulator, Runnable {
         this.simulationCount = simulationCount;
     }
 
+    private boolean isValid(int floorCount, int elevatorCount) {
+        return floorCount > 0 && floorCount <= MAX_FLOORS && elevatorCount > 0 && elevatorCount <= MAX_ELEVATORS;
+    }
+
     @Override
     public void run() {
         running.set(true);
         for (int i = 0; i < simulationCount; i++) {
             int[] vals = generateRandom();
-            new ElevatorCallRequest(vals[0], vals[1]).submitRequest();
+            ElevatorCallRequest elevatorCallRequest = new ElevatorCallRequest(vals[0], vals[1]);
+            elevatorCallRequest.submitRequest();
             try {
                 Thread.sleep(this.interval);
             } catch (InterruptedException ie) {
-                System.err.println(ie);
+                throw new ElevatorSimulationException("There was a problem during generation of elevator call requests", ie);
             }
         }
     }
